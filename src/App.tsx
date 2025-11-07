@@ -10,13 +10,13 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Categorias from "./components/Categorias";
 import TodosLosProductos from "./components/TodosLosProductos";
+
 import FloatingCart from "./components/carrito/FloatingCart";
 import { CartProvider, useCart } from "./components/carrito/CarritoContext";
 
 import CategoriaProductos from "./components/CategoriaProductos";
 import FormularioCompraPasos from "./components/steepformulario/index";
 import FormularioMAyor from "./components/Mayoristas/steepformulario1/index1";
-
 import Promociones from "./components/PromotionCard";
 import CatalogoMayoristas from "./components/Mayoristas/CatalogoMayoristas";
 import MainScreen from "./components/Mayoristas/MainScreen";
@@ -24,11 +24,9 @@ import { AuthProvider } from "./components/protec/AuthContext";
 import ProtectedRoute from "./components/protec/ProtectedRoute";
 import "./index.css";
 import ProductDetails from "./components/detalle/ProductDetails";
-
-import { fetchProducts } from "../src/utils/api";
-import { ProductCarousel } from "../src/components/principal/product-carousel";
+import { fetchProducts } from "./utils/api";
+import { ProductCarousel } from "./components/principal/product-carousel";
 import PromotionDetails from "./components/detalle/PromotionDetails";
-
 import Categoriasuno from "./components/categhoria/Categoriasuno";
 import PromotionCardUno from "./components/PromotionCarduno";
 import CategoriasMayor from "./components/Mayoristas/CategoriasMayor";
@@ -41,8 +39,11 @@ import SucursalesSection from "./components/SucursalesSection/SucursalesSection"
 import SolicitudForm from "./components/trabaja_con_nosotros/trabaja_con_nosotros";
 import Formulario from "./components/pedido/steps/Formulario";
 import Formulario1 from "./components/pedido/steps_1/Formulario";
+import Reserva from "./components/Reserva";
+import { Toaster } from "sonner";
 
-// ... (Previous interfaces and components remain the same)
+import PreimonFloatingCart from "./components/PreimonFloatingCart";
+import ReservaConfirmada from "./components/ReservaConfirmada";
 
 interface Product {
   id: number;
@@ -51,38 +52,42 @@ interface Product {
   precio_extra: string;
   imageUrl: string;
   fotos: Array<{ foto: string }>;
-  stock: number; // <- Agregar la propiedad stock
+  stock: number;
 }
+
 const ConditionalFooter: React.FC = () => {
   const location = useLocation();
-  const hiddenFooterPaths = ["/catalogo", "/main"]; // Aquí puedes agregar las rutas protegidas
-
+  const hiddenFooterPaths = ["/catalogo", "/main"];
   if (hiddenFooterPaths.includes(location.pathname)) return null;
-
   return <Footer />;
 };
 
-const App: React.FC = () => {
-  const [isCartOpen, setCartOpen] = useState(false);
-  const handleOpenCart = () => setCartOpen(true);
-  const handleCloseCart = () => setCartOpen(false);
+// 👇 COMPONENTE ACTUALIZADO PARA CONTROLAR AMBOS CARRITOS
+const ConditionalCarts: React.FC<{
+  isCartOpen: boolean;
+  onOpenCart: () => void;
+  onCloseCart: () => void;
+}> = ({ isCartOpen, onOpenCart, onCloseCart }) => {
+  const location = useLocation();
+
+  // ✅ Ocultar TODO en la página de confirmación
+  if (location.pathname === '/reservaconfirmada') {
+    return null;
+  }
 
   return (
-    <AuthProvider>
-      <CartProvider>
-        <Router>
-          <div>
-            <ConditionalHeader />
-            <MainContent />
-            <ConditionalFooter />
-            <CartIcon onOpenCart={handleOpenCart} />
-            {isCartOpen && (
-              <FloatingCart isCartOpen={isCartOpen} onClose={handleCloseCart} />
-            )}
-          </div>
-        </Router>
-      </CartProvider>
-    </AuthProvider>
+    <>
+      {/* Carrito tradicional: NO en /Reserva ni en /reservaconfirmada */}
+      {location.pathname !== '/Reserva' && (
+        <>
+          <CartIcon onOpenCart={onOpenCart} />
+          {isCartOpen && <FloatingCart isCartOpen={isCartOpen} onClose={onCloseCart} />}
+        </>
+      )}
+
+      {/* Carrito Preimon: visible en todas excepto /reservaconfirmada */}
+      <PreimonFloatingCart />
+    </>
   );
 };
 
@@ -92,7 +97,6 @@ const CartIcon: React.FC<{ onOpenCart: () => void }> = ({ onOpenCart }) => {
   const isSmallScreen = useMediaQuery({ maxWidth: 768 });
   const location = useLocation();
 
-  // Agregar esta verificación para rutas mayoristas
   const isMayoristaRoute =
     location.pathname.startsWith("/categoriamayor") ||
     location.pathname.startsWith("/productosmayoristas") ||
@@ -146,7 +150,6 @@ const ConditionalHeader: React.FC = () => {
     "/productomayor",
   ];
 
-  // Verificar si la ruta actual comienza con alguno de estos prefijos
   const isMayoristaRoute =
     mayoristaPaths.some((path) => location.pathname.startsWith(path)) ||
     location.pathname.startsWith("/categoriamayor/") ||
@@ -187,7 +190,8 @@ const MainContent: React.FC = () => {
         <Route path="/pedidos_1" element={<Formulario1 />} />
         <Route path="/catalogo" element={<CatalogoMayoristas />} />
         <Route path="/producto/:productId" element={<ProductDetails />} />
-
+        <Route path="/Reserva" element={<Reserva />} />
+        <Route path="/reservaconfirmada" element={<ReservaConfirmada />} />
         <Route
           path="/productomayor/:productId"
           element={<ProductDetailsMayor />}
@@ -201,7 +205,6 @@ const MainContent: React.FC = () => {
         <Route path="/productosmayoristas" element={<ProductosMayorista />} />
         <Route path="/pago1" element={<FormularioMAyor />} />
         <Route path="/trabaja-con-nosotros" element={<SolicitudForm />} />
-
         <Route
           path="/main"
           element={
@@ -214,6 +217,7 @@ const MainContent: React.FC = () => {
     </div>
   );
 };
+
 const HomePage: React.FC = () => {
   const [fallingImages, setFallingImages] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -239,7 +243,6 @@ const HomePage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Create more falling images for larger screens, fewer for mobile
     const getImageCount = () => {
       if (typeof window !== "undefined") {
         return window.innerWidth > 1024
@@ -248,20 +251,19 @@ const HomePage: React.FC = () => {
           ? 15
           : 10;
       }
-      return 15; // Default if window is not available
+      return 15;
     };
 
     const imagesArray = Array.from({ length: getImageCount() }, (_, index) => ({
       id: index,
-      size: Math.random() * 60 + 40, // Slightly smaller images for better performance
+      size: Math.random() * 60 + 40,
       left: Math.random() * 100,
       delay: Math.random() * 5,
-      rotation: Math.random() * 360, // Add rotation for more visual interest
+      rotation: Math.random() * 360,
     }));
 
     setFallingImages(imagesArray);
 
-    // Update falling images on window resize
     const handleResize = () => {
       const newCount = getImageCount();
       if (newCount !== fallingImages.length) {
@@ -284,118 +286,25 @@ const HomePage: React.FC = () => {
 
   return (
     <>
-      {/* Embedded styles */}
       <style>{`
-        @keyframes float {
-          0% {
-            transform: translateY(0) rotate(0deg);
-          }
-          50% {
-            transform: translateY(-100px) rotate(180deg);
-          }
-          100% {
-            transform: translateY(0) rotate(360deg);
-          }
-        }
-
-        @keyframes gradient {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
-        }
-
-        .falling-logo {
-          position: absolute;
-          top: -100px;
-          animation-name: fall;
-          animation-timing-function: linear;
-          animation-iteration-count: infinite;
-          z-index: 1;
-          pointer-events: none;
-        }
-
-        @keyframes fall {
-          0% {
-            transform: translateY(-100px) rotate(0deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.7;
-          }
-          90% {
-            opacity: 0.7;
-          }
-          100% {
-            transform: translateY(calc(100vh + 100px)) rotate(360deg);
-            opacity: 0;
-          }
-        }
-
-        .falling-background {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          z-index: 0;
-        }
-
-        .animate-pulse {
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.7;
-          }
-        }
-
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .animate-in {
-          animation: fadeIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
+        @keyframes float { 0% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-100px) rotate(180deg); } 100% { transform: translateY(0) rotate(360deg); } }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .falling-logo { position: absolute; top: -100px; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; z-index: 1; pointer-events: none; }
+        @keyframes fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translateY(calc(100vh + 100px)) rotate(360deg); opacity: 0; } }
+        .falling-background { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .animate-gradient { background-size: 200% 200%; animation: gradient 3s ease infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
+      <Toaster richColors position="top-center" />
 
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-blue-500 overflow-hidden">
         {showPhoneAlert && (
           <div className="fixed inset-0 z-50 flex items-center justify-center animate-in">
-            {/* Animated background with particles */}
             <div className="absolute inset-0 bg-black/70 backdrop-blur-md overflow-hidden">
               <div className="absolute inset-0 opacity-30">
                 {Array.from({ length: 20 }).map((_, i) => (
@@ -419,7 +328,6 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="relative max-w-md w-[90%] sm:w-[85%] md:w-full mx-auto overflow-hidden rounded-2xl">
-              {/* Animated gradient border */}
               <div
                 className="absolute inset-0 rounded-2xl animate-gradient"
                 style={{
@@ -429,7 +337,6 @@ const HomePage: React.FC = () => {
                 }}
               ></div>
 
-              {/* Content with glass morphism effect */}
               <div className="relative m-[3px] bg-gradient-to-br from-purple-900/90 to-purple-800/90 backdrop-blur-xl p-8 rounded-2xl shadow-[0_0_30px_rgba(124,58,237,0.5)]">
                 <div
                   className="fixed top-2 right-2 bg-gradient-to-br from-pink-500 to-purple-700 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold cursor-pointer shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-1 z-50 border-2 border-white/50"
@@ -531,16 +438,38 @@ const HomePage: React.FC = () => {
         <section>
           <PromotionCardUno />
         </section>
-        {/* 
-        <section>
-          <PreventaComponent />
-        </section> */}
 
         <section>
           <SucursalesSection />
         </section>
       </div>
     </>
+  );
+};
+
+const App: React.FC = () => {
+  const [isCartOpen, setCartOpen] = useState(false);
+  const handleOpenCart = () => setCartOpen(true);
+  const handleCloseCart = () => setCartOpen(false);
+
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <Router>
+          <div>
+            <ConditionalHeader />
+            <MainContent />
+            <ConditionalFooter />
+            {/* ✅ CONTROL CENTRALIZADO DE CARRITOS */}
+            <ConditionalCarts
+              isCartOpen={isCartOpen}
+              onOpenCart={handleOpenCart}
+              onCloseCart={handleCloseCart}
+            />
+          </div>
+        </Router>
+      </CartProvider>
+    </AuthProvider>
   );
 };
 

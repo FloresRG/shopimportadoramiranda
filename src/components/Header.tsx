@@ -464,6 +464,7 @@ const Header: React.FC<HeaderProps> = ({ height = "h-16" }) => {
               { path: "/categorias", label: "Categorías" },
               { path: "/todos-productos", label: "Productos" },
               { path: "/promociones", label: "Ofertas" },
+              { path: "/Reserva", label: "Reserva" },
               { path: "/trabaja-con-nosotros", label: "Trabaja con nosotros" },
             ].map((item) => (
               <Link
@@ -564,6 +565,7 @@ const Header: React.FC<HeaderProps> = ({ height = "h-16" }) => {
                 { path: "/categorias", label: "Categorías", icon: "" },
                 { path: "/todos-productos", label: "Productos", icon: "" },
                 { path: "/promociones", label: "Ofertas", icon: "" },
+                { path: "/reserva", label: "Reserva" },
                 {
                   path: "/trabaja-con-nosotros",
                   label: "Trabaja con nosotros",
